@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"ttnmapper/api-v2/internal/accountRoutes"
-	"ttnmapper/api-v2/internal/apiRoutes"
+	"github.com/ttnmapper/ttnmapper-api-v2/internal/accountRoutes"
+	"github.com/ttnmapper/ttnmapper-api-v2/internal/apiRoutes"
 
 	"github.com/gorilla/mux"
 )

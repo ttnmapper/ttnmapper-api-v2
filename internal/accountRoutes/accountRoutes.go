@@ -1,11 +1,12 @@
 package accountRoutes
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
-	"ttnmapper/api-v2/internal/userHandler"
+	"github.com/ttnmapper/ttnmapper-api-v2/internal/userHandler"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
@@ -15,6 +16,11 @@ const (
 )
 
 var SECRET_KEY = []byte("AllYourBase")
+
+type MyCustomClaims struct {
+	LoginTicket string `json:"loginTicket"`
+	jwt.StandardClaims
+}
 
 /*
  * @brief 	Called when a user logs in to dispatch the required tasks
@@ -48,11 +54,6 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	// Create new login request, with a number to give the user
 	loginTicket := userHandler.DispatchUserLogin(loginCode[0])
 
-	type MyCustomClaims struct {
-		Foo string `json:"loginTicket"`
-		jwt.StandardClaims
-	}
-
 	// Create the Claims
 	claims := MyCustomClaims{
 		loginTicket,
@@ -84,14 +85,47 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 func CheckLoginStatus(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
+	result := make(map[string]string)
+	w.Header().Set("Content-Type", "application/json")
+
 	loginTicket, ok := r.Form["ticket"]
 	if !ok {
 		fmt.Printf("No ticket supplied\n")
+		result["error"] = "No ticket supplied in request"
+		jsonStr, err := json.Marshal(result)
+		if err != nil {
+			w.Write(jsonStr)
+		}
 		return
 	}
 
-	state := userHandler.CheckTicketState(loginTicket[0])
-	fmt.Printf(string(state))
+	// The loginTicket is the entire jwt token. Verify it
+	token, err := jwt.ParseWithClaims(loginTicket[0], &MyCustomClaims{}, keyFunction)
+	if err != nil {
+		fmt.Printf(err.Error()) // eg. token is expired by 12m54s
+		result["error"] = err.Error()
+		jsonStr, err := json.Marshal(result)
+		if err != nil {
+			w.Write(jsonStr)
+		}
+		return
+	}
+
+	claims := token.Claims.(*MyCustomClaims)
+	if claims.StandardClaims.VerifyExpiresAt(time.Now().Unix(), true) {
+		fmt.Printf("loginTicket time valid")
+		state := userHandler.CheckTicketState(claims.LoginTicket)
+		fmt.Printf(string(state))
+
+		result := map[string]string {
+			"login_state": string(state)
+		}
+	} else {
+		fmt.Printf("loginTicket time invalid")
+		w.Write([]byte(json.Marshal(result)))
+		return
+	}
+
 }
 
 /*
@@ -104,4 +138,8 @@ func VerifyToken(w http.ResponseWriter, r *http.Request) {
 
 func CheckStatus(w http.ResponseWriter, r *http.Request) {
 
+}
+
+func keyFunction(token *jwt.Token) (interface{}, error) {
+	return SECRET_KEY, nil
 }

@@ -1,7 +1,10 @@
 package userHandler
 
 import (
+	"bytes"
 	"fmt"
+	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/segmentio/ksuid"
@@ -47,9 +50,13 @@ func DispatchUserLogin(usercode string) string {
 func UserLoginAndUpdate(usercode string, taskId string) {
 
 	// Send code to TTN Mapper servers
-	// resp, err := http.PostForm("https://account.thethingsnetwork.org/users/token",
-	// 	url.Values{"grant_type": {"authorization_code"}, "code": {usercode}})
-	fmt.Printf("Performing routine\n")
+	fmt.Printf("Starting user login\n")
+	client := &http.Client{}
+	postData := url.Values{"grant_type": {"authorization_code"}, "code": {usercode}}
+	req, err := http.NewRequest("POST", "https://account.thethingsnetwork.org/users/token", bytes.NewReader(postData))
+	req.Header.Add("User-Agent", "myClient")
+	resp, err := client.Do(req)
+
 	for i := range make([]int, 20) {
 		//fmt.Printf("%d", i)
 		time.Sleep(1 * time.Second)
