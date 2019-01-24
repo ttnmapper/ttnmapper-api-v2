@@ -117,12 +117,16 @@ func CheckLoginStatus(w http.ResponseWriter, r *http.Request) {
 		state := userHandler.CheckTicketState(claims.LoginTicket)
 		fmt.Printf(string(state))
 
-		result := map[string]string {
-			"login_state": string(state)
+		result["login_state"] = string(state)
+		jsonStr, err := json.Marshal(result)
+		if err != nil {
+			w.Write(jsonStr)
 		}
+		return
 	} else {
 		fmt.Printf("loginTicket time invalid")
-		w.Write([]byte(json.Marshal(result)))
+		jsonStr, _ := json.Marshal(result)
+		w.Write([]byte(jsonStr))
 		return
 	}
 

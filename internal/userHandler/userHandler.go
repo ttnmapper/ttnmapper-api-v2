@@ -1,11 +1,13 @@
 package userHandler
 
 import (
-	"bytes"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
-	"time"
+	"os"
+	"strconv"
+	"strings"
 
 	"github.com/segmentio/ksuid"
 )
@@ -52,19 +54,28 @@ func UserLoginAndUpdate(usercode string, taskId string) {
 	// Send code to TTN Mapper servers
 	fmt.Printf("Starting user login\n")
 	client := &http.Client{}
-	postData := url.Values{"grant_type": {"authorization_code"}, "code": {usercode}}
-	req, err := http.NewRequest("POST", "https://account.thethingsnetwork.org/users/token", bytes.NewReader(postData))
-	req.Header.Add("User-Agent", "myClient")
-	resp, err := client.Do(req)
 
-	for i := range make([]int, 20) {
-		//fmt.Printf("%d", i)
-		time.Sleep(1 * time.Second)
-		if i > 10 {
-			fmt.Printf("Changin value\n")
-			currentTasks[taskId].status = Status_Updating
-		}
+	// Create BODY of request
+	bodyData := url.Values{}
+	bodyData.Set("grant_type", "authorization_code")
+	bodyData.Set("code", usercode)
+
+	req, _ := http.NewRequest("POST", "https://account.thethingsnetwork.org/users/token", strings.NewReader(bodyData.Encode()))
+
+	// Add header fields
+	req.Header.Add("Authorization", "Basic "+os.Getenv("TTN_AUTH_CODE"))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Content-Length", strconv.Itoa(len(bodyData.Encode())))
+
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("Error sending post request")
 	}
+	fmt.Printf("Response was\n")
+	fmt.Printf(resp.Status)
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	fmt.Printf(string(bodyBytes))
+
 	fmt.Printf("Routine done\n")
 	currentTasks[taskId].status = Status_Done
 
