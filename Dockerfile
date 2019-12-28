@@ -1,29 +1,13 @@
 # Setup environemtn by getting required packages
-FROM golang:1.11.4 as api_environment
+FROM python:3.6.8-alpine3.8
+# Dump log messages immediately. Hopefully quick enough before something crashes.
+ENV PYTHONUNBUFFERED 1
 
-WORKDIR /go-modules
+WORKDIR /usr/src/app
 
-COPY go.mod ./go.mod
+COPY requirements.txt ./
+RUN pip install -r requirements.txt 
 
-RUN go get
+COPY . .
 
-
-
-# Build the application in the environment
-FROM api_environment as api_builder 
-
-WORKDIR /go-modules
-
-COPY . ./
-RUN go mod vendor
-RUN CGO_ENABLED=0 GOOS=linux go build -v -mod=vendor -o ttnmapper_api
-
-
-# Create runnable container
-FROM alpine:3.8
-
-WORKDIR /root/
-
-COPY --from=api_builder /go-modules/ttnmapper_api .
-
-CMD ["./ttnmapper_api"]
+CMD [ "gunicorn", "-b", "0.0.0.0:8000", "ttnm_backend.wsgi"]
